@@ -73,26 +73,27 @@ def get_users():
 
 # Function to get user by ID
 def get_user_by_id(user_id):
-    user = {}
+    user = None  # Change to None to signify no user found
     try:
         conn = connect_to_db()
         conn.row_factory = sqlite3.Row
         cur = conn.cursor()
         cur.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
         row = cur.fetchone()
-        user = {
-            "user_id": row["user_id"],
-            "name": row["name"],
-            "email": row["email"],
-            "phone": row["phone"],
-            "address": row["address"],
-            "country": row["country"]
-        }
+        if row:  # Check if row exists
+            user = {
+                "user_id": row["user_id"],
+                "name": row["name"],
+                "email": row["email"],
+                "phone": row["phone"],
+                "address": row["address"],
+                "country": row["country"]
+            }
     except Exception as e:
         print(f"Get user by ID failed - {e}")
     finally:
         conn.close()
-    return user
+    return user  # Return None if user not found
 
 # Function to update a user
 def update_user(user):
@@ -116,9 +117,13 @@ def delete_user(user_id):
     message = {}
     try:
         conn = connect_to_db()
-        conn.execute("DELETE from users WHERE user_id = ?", (user_id,))
+        cur = conn.cursor()
+        cur.execute("DELETE from users WHERE user_id = ?", (user_id,))
+        if cur.rowcount == 0:  # Check if any rows were deleted
+            message["status"] = "User not found"
+        else:
+            message["status"] = "User deleted successfully"
         conn.commit()
-        message["status"] = "User deleted successfully"
     except Exception as e:
         print(f"Delete user failed - {e}")
         conn.rollback()
@@ -142,9 +147,12 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 def api_get_users():
     return jsonify(get_users())
 
-@app.route('/api/users/<user_id>', methods=['GET'])
+@app.route('/api/users/<int:user_id>', methods=['GET'])
 def api_get_user(user_id):
-    return jsonify(get_user_by_id(user_id))
+    user = get_user_by_id(user_id)  # Retrieve user from database
+    if user is None:  # Check if user was found
+        return jsonify({"error": "User not found"}), 404  # Return 404 if user doesn't exist
+    return jsonify(user), 200  # Return user data with 200 OK
 
 @app.route('/api/users/add', methods=['POST'])
 def api_add_user():
