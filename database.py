@@ -169,4 +169,5 @@ def api_delete_user(user_id):
     return jsonify(delete_user(user_id))
 
 if __name__ == "__main__":
+    create_db_table()
     app.run()
